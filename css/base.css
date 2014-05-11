@@ -1,0 +1,60 @@
+/*
+    Document   : css/base.css
+    Created on : 2014-05-11 05:43 AM
+    Author     : MtC
+    Description:
+    ...
+*/
+
+root {
+    display: block;
+}
+
+textarea {
+    background-color: darkgrey;
+    color: whitesmoke;
+    width: 600px;
+    height: 400px;
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+#showMd {
+    width: 600px;
+    border: 1px solid #c4c4c4;
+    color: black;
+}
+
+p, pre, blockquote {
+    margin: 0.5rem 0;
+}
+
+blockquote {
+    padding: 1rem 0.5rem 0.5rem 1.6rem;
+    border-left: 0.7rem solid darkblue;
+    border-right: 0.1rem solid darkblue;
+}
+
+blockquote::before {
+    content: "\201C";
+    position: absolute;
+    margin-left: -1.3rem;
+    margin-top: -0.5rem;
+    font-size: 3rem;
+    line-height: 2rem;
+}
+
+pre {
+    padding: 1rem 0.5rem 0.5rem 1.6rem;
+    border-left: 0.7rem solid #c4c4c4;
+    border-right: 0.1rem solid #c4c4c4;
+    background-color: #f2f2f2;
+}
+
+code {
+    background-color: #c4c4c4;
+}
+
+abbr {
+    font-variant:small-caps;
+}

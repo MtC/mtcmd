@@ -6,9 +6,9 @@
 */
 
 require(["mtcmd"], function(mtcmd) {
-    //This function is called when scripts/helper/util.js is loaded.
-    //If util.js calls define(), then this function is not fired until
-    //util's dependencies have loaded, and the util argument will hold
-    //the module value for "helper/util".
-    mtcmd.pizza();
+    $('#md').on('input', function () {
+        mtcmd.setMDLines($(this).val()).getJSON();
+    });
+    //console.log(JSON.stringify(mtcmd.traverseLine('vier __test **bleh** eh__ **gekkigheid** fiets //driehoek __vierkant__ zot//')));
+
 });
