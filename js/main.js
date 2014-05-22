@@ -6,9 +6,11 @@
 */
 
 require(["mtcmd"], function(mtcmd) {
+    mtcmd.init({'directRendering':false});
     $('#md').on('input', function () {
         mtcmd.setMDLines($(this).val()).getJSON();
     });
+    mtcmd.expandTextarea('md');
     //console.log(JSON.stringify(mtcmd.traverseLine('vier __test **bleh** eh__ **gekkigheid** fiets //driehoek __vierkant__ zot//')));
 
 });
