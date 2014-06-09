@@ -4,4 +4,4 @@
 # but
 !.gitignore
 !index.html
-!app
+!*/app/
