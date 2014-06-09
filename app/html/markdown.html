@@ -1,0 +1,20 @@
+<div>
+    <ul>
+        <li class="markdownOptions" x-ng-click="selectionView('#','','line')"><i class="fa fa-header fa-fw"></i></li>
+        <li class="markdownOptions" x-ng-click="selectionView('*','*','inlineEscape')"><i class="fa fa-bold fa-fw"></i></li>
+        <li class="markdownOptions" x-ng-click="selectionView('/','/','inline')"><i class="fa fa-italic fa-fw"></i></li>
+        <li class="markdownOptions" x-ng-click="selectionView('_','_','inline')"><i class="fa fa-underline fa-fw"></i></li>
+        <li class="markdownOptions" x-ng-click="selectionView('~','~','inline')"><i class="fa fa-strikethrough fa-fw"></i></li>
+        <li class="markdownOptions" x-ng-click="selectionView('>','>','inline')"><i class="fa fa-eye fa-fw"></i></li>
+        <li class="markdownOptions" x-ng-click="selectionView('-','-','inlineEscape')"><i class="fa fa-subscript fa-fw"></i></li>
+        <li class="markdownOptions" x-ng-click="selectionView('+','+','inline')"><i class="fa fa-superscript fa-fw"></i></li>
+        <li class="markdownOptions" x-ng-click="selectionView('-','','list')"><i class="fa fa-list-ul fa-fw"></i></li>
+        <li class="markdownOptions" x-ng-click="selectionView('.','','list')"><i class="fa fa-list-ol fa-fw"></i></li>
+        <li class="markdownOptions" x-ng-click="selectionView('{square-o}','','inline')"><i class="fa fa-square-o fa-fw"></i></li>
+        <li class="markdownOptions" x-ng-click="selectionView('{check-square-o}','','inline')"><i class="fa fa-check-square-o fa-fw"></i></li>
+        <li class="markdownOptions" x-ng-click="selectionView('![',']','inline')"><i class="fa fa-photo fa-fw"></i></li>
+        <li class="markdownOptions" x-ng-click="selectionView('[',']()','inline')"><i class="fa fa-link fa-fw"></i></li>
+    </ul>
+    <div>{{showSelection}}</div>
+    <textarea name="md" id="md" cols="30" rows="10">{{markdown}}</textarea>
+</div>
