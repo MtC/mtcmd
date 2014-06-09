@@ -6,14 +6,28 @@
     <title></title>
     <meta name="description" content="">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="scss/base.scss.css">
-    <link rel="stylesheet" href="css/base.css">
-    <script data-main="js/main" src="js/require.min.js"></script>
+    <!--<link rel="stylesheet" href="scss/base.scss.css">-->
+    <link rel="stylesheet" href="vendor/font-awesome-bower/css/font-awesome.css">
+    <link rel="stylesheet" href="app/css/base.css">
 </head>
 <body>
-    <textarea name="md" id="md" cols="30" rows="10"></textarea>
-    <div id="showMd"></div>
-    <div id="showJson"></div>
-    [youtube:UqMcM6_ZaBY]
+    <ul>
+        <li><a href="#/intro">introductie</a></li>
+        <li><a href="#/show">show</a></li>
+        <li><a href="#/example">example</a></li>
+        <li><a href="#/html">html</a></li>
+        <li><a href="#/json">json</a></li>
+        <li><a href="#/markdown">markdown</a></li>
+        <li class="saveMdLocal">save</li>
+    </ul>
+
+    <section x-ui-view>
+        <div id="requirejs-loading-panel">
+            <div class="loading-status" id="requirejs-loading-status"></div>
+            <div id="requirejs-loading-module-name"></div>
+        </div>
+    </section>
+
+    <script data-main="app/js/main" src="vendor/requirejs/require.js"></script>
 </body>
 </html>

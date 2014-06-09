@@ -1,2 +1,6 @@
-.sass-cache
-ace
+# ignore all
+*
+
+# but
+!.gitignore
+!app/
