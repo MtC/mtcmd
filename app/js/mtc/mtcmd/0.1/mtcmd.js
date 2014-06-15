@@ -63,9 +63,11 @@ define('mtcmd',['jquery'], function($) {
      */
     md.setMDLines = function (text) {
         var i;
+        text = text || '';
         md.lines = text.replace(/\n\r|\r/g,'\n').split('\n');
         md.aLines  = [];
         md.notes   = [];
+        md.abbreviations = {abbr:[],title:[]};
         for (i = 0; i < md.lines.length; i = i + 1) {
             md.readLine(md.lines[i]);
         }
@@ -73,8 +75,8 @@ define('mtcmd',['jquery'], function($) {
         return this;
     };
     
-    md.abbreviations = {abbr:[],title:[]};
-    md.notes = [];
+    //md.abbreviations = {abbr:[],title:[]};
+    //md.notes = [];
     
     md.footerNotes = function () {
         console.log(md.notes);
@@ -100,9 +102,10 @@ define('mtcmd',['jquery'], function($) {
         {type: 'hr',         expression: /^(\*\s?){3,}$/},
         {type: 'ul',         expression: /^-+\s/},
         {type: 'ul',         expression: /^\*+\s/},
-        {type: 'ol',         expression: /^\d{0,2}\.+\s/},// for now only one level
+        {type: 'ol',         expression: /^(\d{0,2}|\s{0,2})\.+\s/},// for now only one level
         {type: 'table',      expression: /^\|/},
-        {type: 'abbrDef',    expression: /^~:/}
+        {type: 'abbrDef',    expression: /^=:/},
+        {type: 'p',          expression: /^¶\s/}
     ];
 
     /**
@@ -206,8 +209,9 @@ define('mtcmd',['jquery'], function($) {
      * @return {object} json
      */
     md.readLine = function (sLine) {
-        var i, check, tag, oTemp = {}, sAbbr, aTitle, sTitle;
+        var i, check, tag, oTemp = {}, sAbbr, aTitle, sTitle, oldTag, oldTagIndex;
         if ((check = md.expressionCheck(sLine, md.lineOptions))) {// variable declaration in if statement
+
             // the line starts with one of the basic options
             if (check.type === 'abbrDef') {
                 aTitle = sLine.match(/{([^}]*)}/);
@@ -264,8 +268,15 @@ define('mtcmd',['jquery'], function($) {
                 }
                 return;
             }
+
+            oldTagIndex = md.aLines.length - 1;
+            oldTag = oldTagIndex > -1 ? md.aLines[oldTagIndex].e : '';
+            if (oldTag === 'undetermined') {
+                md.aLines.pop();
+            }
+
             sLine = sLine.replace(check.expression,'').replace(/^\s*/,'').replace(/\s{2,}/g,' ');
-            tag   = check.type === 'h' ? check.type + check.symbol : check.type;
+            tag   = check.type === 'h' ? check.type + (check.symbol - 1) : check.type;
             if (check.type === 'h') sLine = sLine.replace(/#*$/,'');
             if (md.lineTags.listTags.indexOf(tag) !== -1) {// ul or ol
                 md.processListLine(sLine, tag, check);
@@ -282,7 +293,12 @@ define('mtcmd',['jquery'], function($) {
                     for (ii = 0; ii < iiLength; ii = ii + 1){
                         md.aLines[oldTagIndex].c.push(aTag[ii]);
                     }
+                } else if (tag === 'pre' && oldTag === 'ul') {
+                    md.processTaglessLine(sLine);
                 } else {
+                    if (oldTag === 'undetermined'/* && tag === 'p'*/) {
+                        md.aLines.pop();
+                    }
                     oTemp = {
                         e: tag,
                         c: md.lineTags.textlessTags.indexOf(tag) !== -1 ? null : md.splitInlineElement(sLine)
@@ -303,20 +319,22 @@ define('mtcmd',['jquery'], function($) {
 
     
     md.inlineElement = [
-        {element: 'strong',  regexStart: /([^\\]|^)\*[^\s]/,           regexEnd: /[^\s\\]\*/,   simple: true},
-        {element: 'em',      regexStart: /([^\\]|^)\/[^\s]/,           regexEnd: /[^\s\\]\//,   simple: true},
-        {element: 'b',       regexStart: /([^\\]|^)\_[^\s]/,           regexEnd: /[^\s\\]\_/,   simple: true},
-        {element: 'mark',    regexStart: /([^\\]|^)>[^\s]/,            regexEnd: /[^\s\\]>/,    simple: true},
-        {element: 'sup',     regexStart: /([^\\]|^)\+[^\s]/,           regexEnd: /[^\s\\]\+/,   simple: true},
-        {element: 'sub',     regexStart: /([^\\]|^)\-[^\s]/,           regexEnd: /[^\s\\]\-/,   simple: true},
-        {element: 'del',     regexStart: /([^\\]|^)\~[^\s]/,           regexEnd: /[^\s\\]\~/,   simple: true},
-        {element: 'abbr',    regexStart: /([^\\]|^)\=[^\s]/,           regexEnd: /[^\s\\]\=/,   simple: true},
-        {element: 'code',    regexStart: /([^\\]|^)\`[^\s]/,           regexEnd: /[^\s\\]\`/,   simple: true},
-        {element: 'small',   regexStart: /([^\\]|^)<[^\s]/,            regexEnd: /[^\s\\]</,    simple: true},
-        {element: 'a',       regexStart: /([^\\]|^)\[[^\s]/,           regexEnd: /[^\s\\]\)/,   simple: false},
-        {element: 'img',     regexStart: /([^\\]|^)\!\[[^\s]/,         regexEnd: /[^\s\\]\]/,   simple: false},
-        {element: 'iStack',  regexStart: /([^\\]|^)\[\{[^\s]/,         regexEnd: /[^\s\\]\}\]/, simple: false},
-        {element: 'i',       regexStart: /([^\\]|^)\{[^\s]/,           regexEnd: /[^\s\\]\}/,   simple: false}
+        {element: 'strong',  regexMatch: /([*])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
+        {element: 'em',      regexMatch: /([/])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
+        {element: 'b',       regexMatch: /([_])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
+        {element: 'mark',    regexMatch: /([$])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
+        {element: 'sup',     regexMatch: /([+])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
+        {element: 'sub',     regexMatch: /([-])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
+        {element: 'del',     regexMatch: /([~])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
+        {element: 'abbr',    regexMatch: /([=])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
+        {element: 'code',    regexMatch: /([`])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
+        {element: 'small',   regexMatch: /([<])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
+        {element: 'q',       regexMatch: /([>])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
+        {element: 'a',       regexMatch: /\[([^\)]*)\)/, innerSplit: /\]\s?\(/},
+        {element: 'img',     regexMatch: /\!\[([^\]]*)\]/},
+        {element: 'iStack',  regexMatch: /\[\{([^\}\]]*)\}\]/}, // doesn't work
+        {element: 'i',       regexMatch: /\{([^\}]*)\}/},
+        {element: 'md-note', regexMatch: /\[([^\]]*)\]/}
     ];
 
     /**
@@ -326,44 +344,114 @@ define('mtcmd',['jquery'], function($) {
      * @returns {object} {location:..., inlineElement: ...}
      */
     md.getFirstInlineElement = function (sLine) {
-        var iLength = md.inlineElement.length,
+        var iLength = md.inlineElement.length, urlPattern,
             i, ii, aSplitted, oFirstSplit = {location: -1, inlineElement: {}}, oSplitted, sTempLine, aRem = [];
+        urlPattern = /\b(?:(?:https?):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.‌\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[‌6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1‌,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00‌a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u‌00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?[^\.\s]/i;
+        oSplitted = urlPattern.exec(sLine);
+        if (oSplitted !== null && (oSplitted.index === 0 || sLine[oSplitted.index - 1] !== '(')) {
+            oFirstSplit.location = oSplitted.index;
+            oFirstSplit.pattern  = urlPattern;
+        }
         for (i = 0; i < iLength; i = i + 1) {
             aRem      = [];
-            oSplitted = md.inlineElement[i].regexStart.exec(sLine);
-            //console.log(oSplitted);
-            if (oSplitted !== null) {
-                aRem.push(sLine.substring(0,oSplitted.index + 1));
-                sTempLine = sLine.substring(oSplitted.index + 1);
-                oSplitted = md.inlineElement[i].regexEnd.exec(sTempLine);
-                //console.log(oSplitted);
-                if (oSplitted !== null) {
-                    aRem.push(sTempLine.substring(1,oSplitted.index + 1));
-                    aRem.push(sTempLine.substring(oSplitted.index + 2));
-                    //console.log(aRem);
-                    if (aRem[0].length < oFirstSplit.location || oFirstSplit.location === -1) {
-                        if (md.inlineElement[i].simple ||
-                            (!md.inlineElement[i].simple &&
-                             md.inlineElement[i].element === 'a' &&
-                             (aRem[1].split('](').length === 2 || aRem[1].split('] (').length === 2)) ||
-                            (!md.inlineElement[i].simple &&
-                             md.inlineElement[i].element === 'img') ||
-                            (!md.inlineElement[i].simple && (md.inlineElement[i].element === 'i' || md.inlineElement[i].element === 'iStack'))) {
-                            oFirstSplit.location      = aRem[0].length;
-                            oFirstSplit.inlineElement = md.inlineElement[i];
-                        }
-                    }
+            var elMatch, innerSplit;
+            elMatch = sLine.match(md.inlineElement[i].regexMatch);
+            if (elMatch !== null && md.inlineElement[i].element === 'a') {
+                innerSplit = elMatch[1].split(md.inlineElement[i].innerSplit);
+                if (innerSplit.length === 2 && (oFirstSplit.location === -1 || oFirstSplit.location > elMatch.index)) {
+                    oFirstSplit.location      = elMatch.index;
+                    oFirstSplit.inlineElement = md.inlineElement[i];
                 }
+            } else if (elMatch !== null && (elMatch.index === 0 || elMatch.input[elMatch.index - 1]) !== '\\' && (oFirstSplit.location === -1 || oFirstSplit.location > elMatch.index)) {
+                oFirstSplit.location      = elMatch.index;
+                oFirstSplit.inlineElement = md.inlineElement[i];
             }
         }
         return oFirstSplit;
     };
 
     md.splitInlineElement = function (sLine) {
-        var i, ii, aSplitted, aLine = [], aTemp, oTemp, sTemp, sAbbr, aTitle, oFirstSplit = md.getFirstInlineElement(sLine), aRem = [], oSplitted;
+        var i, ii, aSplitted, aLine = [], aTemp, oTemp, sTemp, sAbbr, aTitle,
+            oFirstSplit = md.getFirstInlineElement(sLine), aRem = [], oSplitted, sTempLine;
         if (oFirstSplit.location === -1) {
             aLine.push({e:"#text",c:md.safeEncoding(sLine)});
+        } else if (typeof(oFirstSplit.pattern) !== 'undefined') {
+            oSplitted = oFirstSplit.pattern.exec(sLine);
+            if (oSplitted.index > 0) {
+                aLine.push({e:'#text',c:md.safeEncoding(sLine.substring(0,oSplitted.index))});
+            }
+            aLine.push({e:'a',c:[{e:'#text',c:oSplitted[0]}],a:[{href:oSplitted[0]}]});
+            sTemp = sLine.substring(oSplitted.index + oSplitted[0].length);
+            if (sTemp.length > 0) {
+                aTemp = md.splitInlineElement(sTemp);
+                for (ii = 0; ii < aTemp.length; ii = ii + 1) {
+                    aLine.push(aTemp[ii]);
+                }
+            }
         } else {
+            var regexMatch, innerSplit;
+            regexMatch = sLine.match(oFirstSplit.inlineElement.regexMatch);
+            sTempLine  = sLine.substring(0,regexMatch.index);
+            if (sTempLine.length > 0) aLine.push({e:"#text",c:md.safeEncoding(sTempLine)});
+            if (oFirstSplit.inlineElement.element === 'a') {
+                innerSplit = regexMatch[1].split(oFirstSplit.inlineElement.innerSplit);
+                aTitle     = innerSplit[1].match(/"([^"]*)"/);
+                aRem       = sLine.substring(regexMatch.index + regexMatch[0].length);
+                oTemp      = {e:'a',a:[],c:md.splitInlineElement(innerSplit[0])};
+                if (aTitle !== null) {
+                    innerSplit[1] = innerSplit[1].substring(0,aTitle.index);
+                    oTemp.a.push({title:aTitle[1]});
+                }
+                oTemp.a.unshift({href:innerSplit[1]});
+            } else if (oFirstSplit.inlineElement.element === 'img') {
+                var imgLength;
+                console.log(regexMatch);
+                aTitle = regexMatch[1].match(/"([^"]*)"/);
+                aRem       = sLine.substring(regexMatch.index + regexMatch[0].length);
+                oTemp      = {e:'img',a:[{class:[]}],c:null};
+                if (aTitle !== null) {
+                    regexMatch[1] = regexMatch[1].substring(0,aTitle.index).replace(/\s*$/,'');
+                    oTemp.a.push({alt:aTitle[1]});
+                }
+                imgLength = regexMatch[1].length;
+                if (imgLength > 4) {
+                    if (regexMatch[1][0] === ':' && regexMatch[1][1] === ':') {
+                        oTemp.a[0].class.push('imageCenter');
+                        regexMatch[1] = regexMatch[1].substring(2);
+                    } else if (regexMatch[1][0] === ':') {
+						oTemp.a[0].class.push('imageLeft');
+                        regexMatch[1] = regexMatch[1].substring(1);
+                    } else if (regexMatch[1][0] === '-' && regexMatch[1][1] === ':') {
+						oTemp.a[0].class.push('imageRight');
+                        regexMatch[1] = regexMatch[1].substring(2);
+                    }
+                }
+                oTemp.a.unshift({src:regexMatch[1]});
+            } else if (oFirstSplit.inlineElement.element === 'i') {
+                oTemp = {e:'i',c:'',a:[{class:regexMatch[1].split(' ')}]};
+            } else if (oFirstSplit.inlineElement.element === 'md-note') {
+                // notes
+            } else {
+                oTemp = {e:oFirstSplit.inlineElement.element,a:[]};
+                if (md.lineTags.titleTags.indexOf(oFirstSplit.inlineElement.element) !== -1) {
+                    aTitle = regexMatch[2].match(/"([^"]*)"/);
+                    // abbreviations (once for all)
+                    if (aTitle !== null) {
+                        regexMatch[2] = regexMatch[2].substring(0,aTitle.index);
+                        oTemp.a.push({title:aTitle[1]});
+                    }
+                }
+                oTemp.c = md.splitInlineElement(regexMatch[2]);
+                aRem    = sLine.substring(regexMatch.index + regexMatch[0].length);
+            }
+            aLine.push(oTemp);
+            if (aRem.length > 0) {
+                aTemp = md.splitInlineElement(aRem);
+                for (ii = 0; ii < aTemp.length; ii = ii + 1) {
+                    aLine.push(aTemp[ii]);
+                }
+            }
+        } /*else {
             oSplitted = oFirstSplit.inlineElement.regexStart.exec(sLine);
             if (sLine[0] === '\\') sLine = sLine.substring(1);
             sTempLine = oSplitted.index === 0 && sLine[0] !== ' ' ? '' : sLine.substring(0,oSplitted.index + 1);
@@ -376,14 +464,16 @@ define('mtcmd',['jquery'], function($) {
             if (oFirstSplit.inlineElement.simple) {
                 oTemp = {e:oFirstSplit.inlineElement.element};
                 if (md.lineTags.titleTags.indexOf(oFirstSplit.inlineElement.element) !== -1) {
-                    aTitle   = aRem[1].match(/{([^}]*)}/);
-                    aRem[1]  = aRem[1].replace(/{.+?}$/,'').replace(/\s+$/,'');
+                    //console.log(aRem[1], oFirstSplit);
+                    aTitle   = aRem[1].match(/"([^"]*)"/);
+                    aRem[1]  = aRem[1].replace(/\s?".*?"$/,'').replace(/\s+$/,'');
                     if (aTitle !== null) {
-                        oTemp.a = [{title:aTitle[1]}];
-                        if (md.abbreviations.abbr.indexOf(aRem[1]) === -1) {
-                            md.abbreviations.abbr.push(aRem[1]);
-                            md.abbreviations.title.push(aTitle[1]);
-                            console.log(md.abbreviations);
+                        if (aTitle[1].length > 0) {
+                            oTemp.a = [{title:aTitle[1]}];
+                            if (md.abbreviations.abbr.indexOf(aRem[1]) === -1) {
+                                md.abbreviations.abbr.push(aRem[1]);
+                                md.abbreviations.title.push(aTitle[1]);
+                            }
                         }
                     } else if (md.abbreviations.abbr.indexOf(aRem[1]) !== -1) {
                         oTemp.a = [{title:md.abbreviations.title[md.abbreviations.abbr.indexOf(aRem[1])]}];
@@ -393,33 +483,57 @@ define('mtcmd',['jquery'], function($) {
                 oTemp.c = aTemp;
             } else {
                 if (oFirstSplit.inlineElement.element === 'a') {
-                    aTemp = aRem[1].split('](').length === 2 ? aRem[1].split('](') : aRem[1].split('] (');
+                    console.log(aRem, sLine);
+                    
+                    aTemp    = aRem[1].split('](').length === 2 ? aRem[1].split('](') : aRem[1].split('] (');
+                    /*
+                    aTitle   = aTemp[1].match(/"([^"]*)"/);
+                    aTemp[1] = aTemp[1].substring(0,aTitle.index).replace(/\s/g,'');
+                    console.log(aTitle, aTemp);
                     if (aTemp[1].length === 0) {
+                        // note
+                        //oTemp.note = md.splitInlineElement(aTemp[0]);
+                        oTemp = {e:'a',a:[{href:''}],note:md.splitInlineElement(aTemp[0])};
+                        console.log(oTemp);
+                        /*
                         oTemp = md.splitInlineElement(aTemp[0]);
                         console.log(oTemp);
                         oTemp[0].a = [{id:'note' + (md.notes.length + 1)}];
                         md.notes.push(oTemp);
                         oTemp = {e:'sup',c:[{e:'a',a:[{href:'#show/#note' + md.notes.length}],c:[{e:'#text',c:md.notes.length}]}]};
+                        
                     } else {
-                        oTemp = {e:'a',a:[{href:aTemp[1]}],c:md.splitInlineElement(aTemp[0])};
+                    console.log(aTemp[0]);
+                    oTemp = {e:'a',a:[],c:md.splitInlineElement(aTemp[0])};
+                    aTitle = aTemp[1].match(/"([^"]*)"/);
+                    if (aTitle !== null) {
+                        aTemp[1] = aTemp[1].substring(0,aTitle.index);
+                        oTemp.a.push({title:aTitle[1]});
                     }
+                    oTemp.a.unshift({href:aTemp[1]});
+                    //}
                 } else if (oFirstSplit.inlineElement.element === 'img') {
-                    oTemp = {e:'img',a:[]};
+                    oTemp = {e:'img'};
+                    oA    = [];
                     aRem[1] = aRem[1].substring(1);
                     aTitle  = aRem[1].match(/{([^}]*)}/);
-                    aRem[1] = aRem[1].replace(/{.+?}$/,'').replace(/\s+$/,'');
+                    aRem[1] = aRem[1].replace(/{.*?}$/,'').replace(/\s+$/,'');
+                    oA.push({alt:''});
                     if (aTitle !== null) {
-                        oTemp.a = [{alt:aTitle[1]}];
+                        oA[0].alt = aTitle[1];
                     }
+                    oA.push({class: []});
                     if (aRem[1].length > 2 && aRem[1][0] === ':' && aRem[1][aRem[1].length - 1] === ':') {
-                        oTemp.a.push({class:['centerImage']});
+                        oA[1].class.push('centerImage');
                     } else if (aRem[1].length > 1 && aRem[1][0] === ':') {
-                        oTemp.a.push({class:['leftImage']});
+                        oA[1].class.push('leftImage');
                     } else if (aRem[1].length > 1 && aRem[1][aRem[1].length - 1] === ':') {
-                        oTemp.a.push({class:['rightImage']});
+                        oA[1].class.push('rightImage');
                     }
                     aRem[1] = aRem[1].replace(/:/g,'');
-                    oTemp.a.push({href:aRem[1]});
+                    oA.unshift({href:aRem[1]});
+                    console.log(oA);
+                    oTemp.a = oA;
                 } else if (oFirstSplit.inlineElement.element === 'iStack') {
                     aRem[2] = aRem[2].substring(1);
                     oTemp   = {e:'span',c:[],a:[{class:["fa-stack","fa-lg"]}]};
@@ -429,7 +543,7 @@ define('mtcmd',['jquery'], function($) {
                         oTemp.c.push(oT);
                     }
                 } else if (oFirstSplit.inlineElement.element === 'i') {
-                    oTemp = {e:'i',a:[{class:md.faClass(aRem[1])}],c:{'#text':null}};
+                    oTemp = {e:'i',a:[{class:aRem[1].split(' ')}],c:{'#text':null}};
                 }
             }
             aLine.push(oTemp);
@@ -439,7 +553,7 @@ define('mtcmd',['jquery'], function($) {
                     aLine.push(aTemp[ii]);
                 }
             }
-        }
+        }*/
         return aLine;
     };
 
@@ -576,14 +690,14 @@ define('mtcmd',['jquery'], function($) {
             oTemp.c[oTemp.c.length -1] = md.loopBlockquote(oTemp.c[oTemp.c.length - 1], oLine);
         } else {
             //console.log(oTemp.c, oLine);
-            console.log(oLine);
+            //console.log(oLine);
             oTemp.c.push({e:'br',c:null});
             if (typeof(oLine.e) !== 'undefined') {
                 console.log('gewoon');
                 oTemp.c.push(oLine);
             } else {
                 for (i = 0; i < oLine.length; i = i + 1) {
-                    console.log('array', oLine[i]);
+                    //console.log('array', oLine[i]);
                     oTemp.c.push(oLine[i]);
                 }
             }
@@ -622,11 +736,15 @@ define('mtcmd',['jquery'], function($) {
     };
 
     md.processTaglessLine = function (sLine) {
-        var i, ii, oldTag, tag, element, aTag, iiLength, oTemp, tagLength;
+        var i, ii, oldTag, tag, element, aTag, iiLength, oTemp, tagLength, breakTags = ['p','ul','ol','code','blockquote'];
         i      = md.aLines.length - 1;
         // only the special lines are encapsulated in a div, thus ignored
         oldTag = i > -1 && md.aLines[i].e !== 'div' ? md.aLines[i].e : '';
+
         sLine  = sLine.replace(/^\s*/,'').replace(/\s{2,}/g,' ');
+
+        // when sLine is empty and the previous tag doesn't allow for breaks, return
+        if (sLine.length === 0 && breakTags.indexOf(oldTag) === -1) return;
 
         if (oldTag === 'undetermined') {
 
@@ -721,25 +839,49 @@ define('mtcmd',['jquery'], function($) {
             } else {
                 tempElement = document.createElement(aJSON[i].e);
                 if (typeof(aJSON[i].a) !== 'undefined') {
-                    for (var key in aJSON[i].a) {
-                        var obj = aJSON[i].a[key];
-                        for (var prop in obj) {
-                            if(obj.hasOwnProperty(prop)) {
-                                var att;
-                                att = document.createAttribute(prop);
-                                if (typeof(obj[prop]) === 'object') {
-                                    var attr = [];
-                                    for (var innerProp in obj[prop]) {
-                                        if (obj[prop].hasOwnProperty(innerProp)) {
-                                            attr.push(obj[prop][innerProp]);
-                                        }
-                                    }
-                                    att.value = attr.join(' ');
-                                } else {
+                    var att, aClass;
+                    if (aJSON[i].e === 'i') {
+                        att = document.createAttribute('class');
+                        aClass = JSON.parse(JSON.stringify(aJSON[i].a[0].class));
+                        for (ii = 0; ii < aClass.length; ii = ii + 1) {
+                            aClass[ii] = aClass[ii].substring(0,1) !== 'fa' ? 'fa-' + aClass[ii] : aClass[ii];
+                        }
+                        if (aClass.indexOf('fa') === -1) aClass.unshift('fa');
+                        if (aClass.indexOf('fa-fw') === -1) aClass.push('fa-fw');
+                        att.value = aClass.join(' ');
+                        tempElement.setAttributeNode(att);
+                    } else if (aJSON[i].e === 'a' && aJSON[i].a[0].href === '') {
+                        tempELement = document.createElement('sup');
+                        subTempElement = document.createElement('a');
+                        md.notes.push(aJSON[i].c);
+                        console.log(md.notes);
+                        subSubTempELement = document.createTextNode(md.notes.length);
+                        subTempElement.appendChild(subSubTempELement);
+                        
+                        //att = document.createAttribute('X')
+                        
+                        tempElement.appendChild(subTempElement);
+                        console.log(aJSON[i]);
+                    } else {
+                        for (var key in aJSON[i].a) {
+                            var obj = aJSON[i].a[key];
+                            for (var prop in obj) {
+                                if(obj.hasOwnProperty(prop)) {
                                     att = document.createAttribute(prop);
-                                    att.value = obj[prop];
+                                    if (typeof(obj[prop]) === 'object') {
+                                        var attr = [];
+                                        for (var innerProp in obj[prop]) {
+                                            if (obj[prop].hasOwnProperty(innerProp)) {
+                                                attr.push(obj[prop][innerProp]);
+                                            }
+                                        }
+                                        att.value = attr.join(' ');
+                                    } else {
+                                        att = document.createAttribute(prop);
+                                        att.value = obj[prop];
+                                    }
+                                    tempElement.setAttributeNode(att);
                                 }
-                                tempElement.setAttributeNode(att);
                             }
                         }
                     }
@@ -779,9 +921,142 @@ define('mtcmd',['jquery'], function($) {
         */
     };
 
-    md.fromJsonToMd = function (json, id) {
-        var element = document.getElementById(id);
-        element.innerHTML = json;
+    md.fromJsonToMd = function (beautify) {
+        var i, jsonLength = md.aLines.length, mdText = '', bBeautify = beautify || true;
+        if (jsonLength > 0) {
+            for (i = 0; i < jsonLength; i = i + 1) {
+                mdText += md.readJson(md.aLines[i]) + '\n';
+            }
+        } else {
+            return '';
+        }
+        return mdText;
+    };
+    
+    md.jsonLineElements = {
+        h: {element: '#', type: 'count'},
+        blockquote: {element: '>', type: 'regular'},
+        pre: {element: '    ', type: 'regular'},
+        hr: {element: '---', type: 'stop'},
+        ul: {element: '-', type: 'list'},
+        ol: {element: '.', type: 'list'},
+        li: {element: '', type: 'list'},
+        table: {element: '|', type: 'table'},
+        p: {element: '¶', type: 'regular'}
+    };
+    
+    md.jsonInlineElements = {
+        strong: {before: '*',  after: '*'},
+        em:     {before: '/',  after: '/'},
+        b:      {before: '_',  after: '_'},
+        mark:   {before: '$',  after: '$'},
+        sup:    {before: '+',  after: '+'},
+        sub:    {before: '-',  after: '-'},
+        del:    {before: '~',  after: '~'},
+        abbr:   {before: '=',  after: '='},
+        code:   {before: '`',  after: '`'},
+        q:      {before: '>',  after: '>'},
+        small:  {before: '<',  after: '<'},
+        a:      {before: '[',  after: ')'},
+        img:    {before: '![', after: ']'},
+        iStack: {before: '[{', after: '}]'},
+        i:      {before: '{',  after: '}'}
+    };
+    
+    md.readJson = function (oElement, depth) {
+        var lineE   = ['h1','h2','h3','h4','h5','h6','p','hr','ul','ol','li','blockquote','pre','table'],
+            inlineE = ['a','b','i','em','strong','mark','code'],
+            sTemp = '', sTemp2 = '', i, oEl, iDepth, sDepth = depth || '', bBeautify = true;
+        if (lineE.indexOf(oElement.e) !== -1) {
+            oEl = oElement.e[0] === 'h' && oElement.e[1] !== 'r' ? md.jsonLineElements[oElement.e[0]] : md.jsonLineElements[oElement.e];
+            if (oEl.type === 'count') {
+                if ((oElement.e === 'h1' || oElement.e === 'h2') && bBeautify) {
+                    for (i = 0; i < oElement.c.length; i = i + 1) {
+                        sTemp2 += md.readJson(oElement.c[i]);
+                    }
+                    sTemp += sTemp2 + '\n';
+                    for (i = 0; i < sTemp2.length; i = i + 1) {
+                        sTemp += oElement.e === 'h1' ? '=' : '-';
+                    }
+                } else {
+                    for (i = 0; i < oElement.e[1]; i = i + 1) {
+                        sTemp += oEl.element;
+                    }
+                    sTemp += ' ';
+                    for (i = 0; i < oElement.c.length; i = i + 1) {
+                        //console.log(oElement.c[i]);
+                        sTemp += md.readJson(oElement.c[i]);
+                    }
+                }
+                sTemp += '\n';
+            } else if (oEl.type === 'regular') {
+                sTemp += !bBeautify && oElement.e === 'p' ? '' : oEl.element;
+                if (oElement.e !== 'pre' && !(!bBeautify && oElement.e === 'p')) sTemp += ' ';
+                for (i = 0; i < oElement.c.length; i = i + 1) {
+                    sTemp2 = md.readJson(oElement.c[i]);
+                    sTemp += sTemp2;
+                    if (sTemp2 === '\n' && !(!bBeautify && oElement.e === 'p')) sTemp += oEl.element;
+                    if (sTemp2 === '\n' && oElement.e !== 'pre' && !(!bBeautify && oElement.e === 'p')) sTemp += ' ';
+                }
+                sTemp += '\n';
+            } else if (oEl.type === 'stop') {
+                sTemp += bBeautify ? '* * * * *\n' : oEl.element + '\n';
+            } else if (oEl.type === 'list') {
+                if (oElement.e === 'ol') {
+                    sTemp += oElement.a[0].start;
+                    sDepth = oElement.a[0].start < 10 ? ' ' : '  ';
+                    for (i = 0; i < oElement.c.length; i = i + 1) {
+                        if (i > 0 && bBeautify) sTemp += sDepth;
+                        sTemp += '. ' + md.readJson(oElement.c[i]) + '\n';
+                    }
+                } else if (oElement.e === 'ul') {
+                    sDepth += '-';
+                    for (i = 0; i < oElement.c.length; i = i + 1) {
+                        if (oElement.c[i].e === 'ul') {
+                            sTemp += md.readJson(oElement.c[i], sDepth);
+                        } else {
+                            sTemp += sDepth + ' ' + md.readJson(oElement.c[i], sDepth) + '\n';
+                        }
+                    }
+                } else {
+                    for (i = 0; i < oElement.c.length; i = i + 1) {
+                        sTemp += md.readJson(oElement.c[i], sDepth);
+                    }
+                }
+            }
+        } else if (typeof(md.jsonInlineElements[oElement.e]) !== 'undefined') {
+            oEl = md.jsonInlineElements[oElement.e];
+            sTemp += oEl.before;
+            if (typeof(oElement.c) !== 'undefined') {
+                for (i = 0; i < oElement.c.length; i = i + 1) {
+                    sTemp += md.readJson(oElement.c[i]);
+                }
+            }
+            if (oElement.e === 'abbr' && typeof(oElement.a) !== 'undefined') {
+                sTemp += '{' + oElement.a[0].title + '}';
+            } else if (oElement.e === 'a') {
+                sTemp += '](' + oElement.a[0].href;
+            } else if (oElement.e === 'i') {
+                sTemp += oElement.a[0].class.join(' ');
+            } else if (oElement.e === 'img') {
+                if (oElement.a[2].class[0] === 'centerImage' || oElement.a[2].class[0] === 'leftImage') {
+                    sTemp += ':';
+                }
+                sTemp += oElement.a[0].href;
+                if (oElement.a[2].class[0] === 'centerImage' || oElement.a[2].class[0] === 'rightImage') {
+                    sTemp += ':';
+                }
+                sTemp += '{' + oElement.a[1].alt + '}';
+            }
+            sTemp += oEl.after;
+        } else if (oElement.e === 'br') {
+            sTemp += '\n';
+            if (sDepth.length > 0 && bBeautify) sTemp += sDepth.replace(/-/g,' ') + ' ';
+        } else {
+            if (sDepth.length > 0 && oElement.c.length === 0) sTemp += '\\';
+            sTemp +=  oElement.c;
+        }
+        return sTemp;
     };
 
     return md;

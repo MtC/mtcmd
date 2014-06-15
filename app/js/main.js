@@ -26,7 +26,7 @@ require.config({
     },
     deps: ['../app/js/bootstrap']
 });
-
+/*
 require.onResourceLoad = function (context, map, depMaps) {
 
     var loadingStatusEl = document.getElementById('requirejs-loading-status'),
@@ -76,13 +76,13 @@ require.onResourceLoad = function (context, map, depMaps) {
 
 
 };
-
+*/
 require(['jquery'],function($) {
     $('.saveMdLocal').on('click',function(){
         var text = $('#md').val();
-        
         localStorage.setItem('tekst', text);
     });
+    document.registerElement('md-note');
 });
 
 /*
