@@ -3,5 +3,6 @@
 
 # but
 !.gitignore
+!composer.json
 !index.html
 !/app

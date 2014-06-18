@@ -1,0 +1,7 @@
+{
+    "name": "mtc/mtcmd",
+    "repositories": [{
+        "type": "vcs",
+        "url":  "http://github.com/MtC/mtcmd"
+    }]
+}

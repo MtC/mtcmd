@@ -319,22 +319,23 @@ define('mtcmd',['jquery'], function($) {
 
     
     md.inlineElement = [
-        {element: 'strong',  regexMatch: /([*])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
-        {element: 'em',      regexMatch: /([/])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
-        {element: 'b',       regexMatch: /([_])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
-        {element: 'mark',    regexMatch: /([$])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
-        {element: 'sup',     regexMatch: /([+])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
-        {element: 'sub',     regexMatch: /([-])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
-        {element: 'del',     regexMatch: /([~])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
-        {element: 'abbr',    regexMatch: /([=])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
-        {element: 'code',    regexMatch: /([`])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
-        {element: 'small',   regexMatch: /([<])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
-        {element: 'q',       regexMatch: /([>])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/},
-        {element: 'a',       regexMatch: /\[([^\)]*)\)/, innerSplit: /\]\s?\(/},
-        {element: 'img',     regexMatch: /\!\[([^\]]*)\]/},
-        {element: 'iStack',  regexMatch: /\[\{([^\}\]]*)\}\]/}, // doesn't work
-        {element: 'i',       regexMatch: /\{([^\}]*)\}/},
-        {element: 'md-note', regexMatch: /\[([^\]]*)\]/}
+        {element: 'strong',  regexMatch: /([*])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/, single: true},
+        {element: 'em',      regexMatch: /([/])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/, single: true},
+        {element: 'b',       regexMatch: /([_])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/, single: true},
+        {element: 'mark',    regexMatch: /([$])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/, single: true},
+        {element: 'sup',     regexMatch: /([+])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/, single: true},
+        {element: 'sub',     regexMatch: /([-])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/, single: true},
+        {element: 'del',     regexMatch: /([~])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/, single: true},
+        {element: 'abbr',    regexMatch: /([=])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/, single: true},
+        {element: 'code',    regexMatch: /([`])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/, single: true},
+        {element: 'small',   regexMatch: /([<])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/, single: true},
+        {element: 'q',       regexMatch: /([>])((?:(?!\1)[^\\]|(?:\\\\)*\\[^\\])*)\1/, single: true},
+        {element: 'a',       regexMatch: /\[([^\)]*)\)/, innerSplit: /\]\s?\(/, single: false},
+        {element: 'img',     regexMatch: /\!\[([^\]]*)\]/, single: false},
+        {element: 'iStack',  regexMatch: /\[\{([^\}\]]*)\}\]/, single: false}, // doesn't work
+        {element: 'i',       regexMatch: /\{([^#\.].*?)\}/, single: false},
+        {element: 'attr',    regexMatch: /\{(.*?)\}/, single: false},
+        {element: 'md-note', regexMatch: /\[([^\]]*)\]/, single: false}
     ];
 
     /**
@@ -355,6 +356,8 @@ define('mtcmd',['jquery'], function($) {
         for (i = 0; i < iLength; i = i + 1) {
             aRem      = [];
             var elMatch, innerSplit;
+            console.log(sLine);
+            if (sLine === 'undefined') break;
             elMatch = sLine.match(md.inlineElement[i].regexMatch);
             if (elMatch !== null && md.inlineElement[i].element === 'a') {
                 innerSplit = elMatch[1].split(md.inlineElement[i].innerSplit);
@@ -371,7 +374,7 @@ define('mtcmd',['jquery'], function($) {
     };
 
     md.splitInlineElement = function (sLine) {
-        var i, ii, aSplitted, aLine = [], aTemp, oTemp, sTemp, sAbbr, aTitle,
+        var i, ii, aSplitted, aLine = [], aTemp, oTemp = {}, sTemp, sAbbr, aTitle,
             oFirstSplit = md.getFirstInlineElement(sLine), aRem = [], oSplitted, sTempLine;
         if (oFirstSplit.location === -1) {
             aLine.push({e:"#text",c:md.safeEncoding(sLine)});
@@ -391,12 +394,13 @@ define('mtcmd',['jquery'], function($) {
         } else {
             var regexMatch, innerSplit;
             regexMatch = sLine.match(oFirstSplit.inlineElement.regexMatch);
+            aRem       = sLine.substring(regexMatch.index + regexMatch[0].length);
             sTempLine  = sLine.substring(0,regexMatch.index);
             if (sTempLine.length > 0) aLine.push({e:"#text",c:md.safeEncoding(sTempLine)});
             if (oFirstSplit.inlineElement.element === 'a') {
                 innerSplit = regexMatch[1].split(oFirstSplit.inlineElement.innerSplit);
                 aTitle     = innerSplit[1].match(/"([^"]*)"/);
-                aRem       = sLine.substring(regexMatch.index + regexMatch[0].length);
+                //aRem       = sLine.substring(regexMatch.index + regexMatch[0].length);
                 oTemp      = {e:'a',a:[],c:md.splitInlineElement(innerSplit[0])};
                 if (aTitle !== null) {
                     innerSplit[1] = innerSplit[1].substring(0,aTitle.index);
@@ -405,30 +409,51 @@ define('mtcmd',['jquery'], function($) {
                 oTemp.a.unshift({href:innerSplit[1]});
             } else if (oFirstSplit.inlineElement.element === 'img') {
                 var imgLength;
-                console.log(regexMatch);
+                //console.log(regexMatch);
                 aTitle = regexMatch[1].match(/"([^"]*)"/);
-                aRem       = sLine.substring(regexMatch.index + regexMatch[0].length);
+                //aRem       = sLine.substring(regexMatch.index + regexMatch[0].length);
                 oTemp      = {e:'img',a:[{class:[]}],c:null};
                 if (aTitle !== null) {
                     regexMatch[1] = regexMatch[1].substring(0,aTitle.index).replace(/\s*$/,'');
                     oTemp.a.push({alt:aTitle[1]});
                 }
+                /*
                 imgLength = regexMatch[1].length;
                 if (imgLength > 4) {
                     if (regexMatch[1][0] === ':' && regexMatch[1][1] === ':') {
                         oTemp.a[0].class.push('imageCenter');
                         regexMatch[1] = regexMatch[1].substring(2);
                     } else if (regexMatch[1][0] === ':') {
-						oTemp.a[0].class.push('imageLeft');
+                        oTemp.a[0].class.push('imageLeft');
                         regexMatch[1] = regexMatch[1].substring(1);
                     } else if (regexMatch[1][0] === '-' && regexMatch[1][1] === ':') {
-						oTemp.a[0].class.push('imageRight');
+                        oTemp.a[0].class.push('imageRight');
                         regexMatch[1] = regexMatch[1].substring(2);
                     }
                 }
+                */
+                //attrCheck = md.attributeCheck(regexMatch[1]);
                 oTemp.a.unshift({src:regexMatch[1]});
+                //aRem    = sLine.substring(regexMatch.index + regexMatch[0].length);
             } else if (oFirstSplit.inlineElement.element === 'i') {
-                oTemp = {e:'i',c:'',a:[{class:regexMatch[1].split(' ')}]};
+                oTemp   = {e:'i',c:'',a:[{class:regexMatch[1].split(' ')}]};
+                //aRem    = sLine.substring(regexMatch.index + regexMatch[0].length);
+            } else if (oFirstSplit.inlineElement.element === 'attr') {
+                var aAttrs = regexMatch[1].split(' '), oAttrs = {class:[]}, oLast;
+                //if (md.aLines.length > 0) {
+                oLast = md.aLines;
+                console.log(oLast);
+                for (i = 0; i < aAttrs.length; i = i + 1) {
+                    if (aAttrs[i][0] === '#' && typeof(oAttrs.id) === 'undefined') {
+                        oAttrs.id = aAttrs[i].substring(1);
+                    } else if (aAttrs[i][0] === '.') {
+                        oAttrs.class.push(aAttrs[i].substring(1));
+                    }
+                }
+                //}
+                console.log(oAttrs);
+                //oTemp = {e:'p',c:[{e:"#text",c:"hoi"}]};
+                
             } else if (oFirstSplit.inlineElement.element === 'md-note') {
                 // notes
             } else {
@@ -442,9 +467,9 @@ define('mtcmd',['jquery'], function($) {
                     }
                 }
                 oTemp.c = md.splitInlineElement(regexMatch[2]);
-                aRem    = sLine.substring(regexMatch.index + regexMatch[0].length);
+                //aRem    = sLine.substring(regexMatch.index + regexMatch[0].length);
             }
-            aLine.push(oTemp);
+            if (typeof(oTemp.e) !== 'undefined') aLine.push(oTemp);
             if (aRem.length > 0) {
                 aTemp = md.splitInlineElement(aRem);
                 for (ii = 0; ii < aTemp.length; ii = ii + 1) {
@@ -554,7 +579,27 @@ define('mtcmd',['jquery'], function($) {
                 }
             }
         }*/
+        console.log(aLine);
         return aLine;
+    };
+    
+    md.attributeCheck = function (oTemp, text) {
+        var attrCheck = /\{(.*?)\}/.exec(text), aAttrs;
+        if (typeof(oTemp.a) === 'undefined') {
+            oTemp.a = {class:[]};
+        } else if (typeof(oTemp.a.class) === 'undefined') {
+            oTemp.a.class = [];
+        }
+        aAttrs = attrCheck.split(' ');
+        for (i = 0; i < aAttrs.length; i = i + 1) {
+            if (aAttrs[i][0] === '#' && typeof(oTemp.id) === 'undefined') {
+                oTemp.id = aAttrs[i].substring(1);
+            } else if (aAttrs[i][0] === '.') {
+                oTemp.class.push(aAttrs[i].substring(1));
+            }
+        }
+        console.log(oAttrs);
+        return oTemp;
     };
 
     /**
@@ -823,9 +868,11 @@ define('mtcmd',['jquery'], function($) {
     };
 
     md.safeEncoding = function (text) {
+        var idClass;
         text = text.replace(/\\/g,'');
                    //.replace(/&/g,'&amp;')
                    //.replace(/</g,'&lt;');
+        idClass = /\{(.*?)\}/.exec(text);
         return text;
     };
 
@@ -1033,7 +1080,7 @@ define('mtcmd',['jquery'], function($) {
                 }
             }
             if (oElement.e === 'abbr' && typeof(oElement.a) !== 'undefined') {
-                sTemp += '{' + oElement.a[0].title + '}';
+                sTemp += '"' + oElement.a[0].title + '"';
             } else if (oElement.e === 'a') {
                 sTemp += '](' + oElement.a[0].href;
             } else if (oElement.e === 'i') {
