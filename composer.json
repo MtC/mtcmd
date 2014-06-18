@@ -3,5 +3,8 @@
     "repositories": [{
         "type": "vcs",
         "url":  "http://github.com/MtC/mtcmd"
-    }]
+    }],
+    "require": {
+        "slim/slim": "2.*"
+    }
 }
